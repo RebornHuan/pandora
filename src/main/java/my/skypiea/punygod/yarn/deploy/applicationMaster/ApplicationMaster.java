@@ -226,7 +226,7 @@ public class ApplicationMaster extends ProcessRunner {
 
     private void launchContainer(Container container) {
         LaunchContainerThread launchThread = new LaunchContainerThread(container,
-                this, containerMemory, args.tfJar);
+                this, containerMemory, args.dataxTar);
         // launch and start the container on a separate thread to keep
         // the main thread unblocked
         // as all containers may not be allocated at one go.

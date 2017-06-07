@@ -35,9 +35,7 @@ public class LaunchCluster implements Client.Command {
     private final String amQueue;
     private final Integer containerMemory;
     private final Integer containerVCores;
-    private final String dataxJar;
-    private final Integer workerNum;
-    private final Integer psNum;
+    private final String pandoraJar;
 
     public LaunchCluster(Configuration conf, YarnClient yarnClient, CommandLine cliParser) {
         this.conf = conf;
@@ -56,25 +54,10 @@ public class LaunchCluster implements Client.Command {
         containerVCores = Integer.parseInt(cliParser.getOptionValue(
                 Constants.OPT_DATAX_CONTAINER_VCORES, Constants.DEFAULT_CONTAINER_VCORES));
 
-        if (cliParser.hasOption(Constants.OPT_DATAX_JAR)) {
-            dataxJar = cliParser.getOptionValue(Constants.OPT_DATAX_JAR);
+        if (cliParser.hasOption(Constants.OPT_PANDORA_JAR)) {
+            pandoraJar = cliParser.getOptionValue(Constants.OPT_PANDORA_JAR);
         } else {
-            dataxJar = ClassUtil.findContainingJar(getClass());
-        }
-        workerNum = Integer.parseInt(
-                cliParser.getOptionValue(Constants.OPT_DATAX_WORKER_NUM, Constants.DEFAULT_DATAX_WORKER_NUM));
-
-        if (workerNum <= 0) {
-            throw new IllegalArgumentException(
-                    "Illegal number of Datax worker task specified: " + workerNum);
-        }
-
-        psNum = Integer.parseInt(
-                cliParser.getOptionValue(Constants.OPT_DATAX_PS_NUM, Constants.DEFAULT_DATAX_PS_NUM));
-
-        if (psNum < 0) {
-            throw new IllegalArgumentException(
-                    "Illegal number of Datax ps task specified: " + psNum);
+            pandoraJar = ClassUtil.findContainingJar(getClass());
         }
     }
 
@@ -85,10 +68,11 @@ public class LaunchCluster implements Client.Command {
         // Copy the application jar to the filesystem
         FileSystem fs = FileSystem.get(conf);
         String appIdStr = appId.toString();
-        Path dstJarPath = Utils.copyLocalFileToDfs(fs, appIdStr, new Path(dataxJar), Constants.DATAX_JAR_NAME);
+        Path dstJarPath = Utils.copyLocalFileToDfs(fs, appIdStr, new Path(pandoraJar), Constants.PANDORA_JAR_NAME);
         Map<String, Path> files = new HashMap<>();
-        files.put(Constants.DATAX_JAR_NAME, dstJarPath);
-        Map<String, LocalResource> localResources = Utils.makeLocalResources(fs, files);
+        files.put(Constants.PANDORA_JAR_NAME, dstJarPath);
+
+        Map<String, LocalResource> localResources = Utils.makeLocalResourcesFile(fs, files);
         Map<String, String> javaEnv = Utils.setJavaEnv(conf);
         String command = makeAppMasterCommand(dstJarPath.toString());
         LOG.info("Make ApplicationMaster command: " + command);
@@ -145,9 +129,6 @@ public class LaunchCluster implements Client.Command {
                 ApplicationMaster.class.getName(),
                 Utils.mkOption(Constants.OPT_DATAX_CONTAINER_MEMORY, containerMemory),
                 Utils.mkOption(Constants.OPT_DATAX_CONTAINER_VCORES, containerVCores),
-                Utils.mkOption(Constants.OPT_DATAX_WORKER_NUM, workerNum),
-                Utils.mkOption(Constants.OPT_DATAX_PS_NUM, psNum),
-                Utils.mkOption(Constants.OPT_DATAX_JAR, dataxJar),
                 "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/AppMaster.stdout",
                 "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/AppMaster.stderr"
         };

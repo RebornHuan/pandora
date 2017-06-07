@@ -10,10 +10,8 @@ public class ApplicationMasterArgs {
   private static final Log LOG = LogFactory.getLog(ApplicationMasterArgs.class);
   private final long containerMemory;
   private final int containerVCores;
-  final int workerContainerNum;
-  final int psContainerNum;
   final int totalContainerNum;
-  final String tfJar;
+  final String dataxTar;
 
   public ApplicationMasterArgs(CommandLine cliParser) {
     containerMemory = Long.parseLong(cliParser.getOptionValue(
@@ -21,26 +19,13 @@ public class ApplicationMasterArgs {
     containerVCores = Integer.parseInt(cliParser.getOptionValue(
         Constants.OPT_DATAX_CONTAINER_VCORES, Constants.DEFAULT_CONTAINER_VCORES));
 
-    workerContainerNum = Integer.parseInt(cliParser.getOptionValue(
-        Constants.OPT_DATAX_WORKER_NUM, Constants.DEFAULT_DATAX_WORKER_NUM));
-    if (workerContainerNum < 1) {
-      throw new IllegalArgumentException(
-          "Cannot run TensorFlow application with no worker containers");
-    }
+    totalContainerNum = 1;
 
-    psContainerNum = Integer.parseInt(cliParser.getOptionValue(
-        Constants.OPT_DATAX_PS_NUM, Constants.DEFAULT_DATAX_PS_NUM));
-    if (psContainerNum < 0) {
-      throw new IllegalArgumentException(
-          "Illegal argument of ps containers specified");
-    }
-
-    totalContainerNum = workerContainerNum + psContainerNum;
-
-    if (!cliParser.hasOption(Constants.OPT_DATAX_JAR)) {
-      throw new IllegalArgumentException("No Datax jar specified");
-    }
-    tfJar = cliParser.getOptionValue(Constants.OPT_DATAX_JAR);
+//    if (!cliParser.hasOption(Constants.OPT_DATAX_TAR)) {
+//      throw new IllegalArgumentException("No Datax tar specified");
+//    }
+//    dataxTar = cliParser.getOptionValue(Constants.OPT_DATAX_TAR);
+    dataxTar = "hdfs://localhost:9000/user/wanghuan/datax.tar.gz";
   }
 
   int getContainerVCores(int maxVCores) {

@@ -47,22 +47,31 @@ public class Utils {
         return env;
     }
 
-    public static Map<String, LocalResource> makeLocalResources(
+    public static Map<String, LocalResource> makeLocalResourcesFile(
             FileSystem fs, Map<String, Path> files) throws IOException {
         Map<String, LocalResource> localResources = new HashMap<>();
         for (Map.Entry<String, Path> entry : files.entrySet()) {
-            addToLocalResources(fs, entry.getKey(), entry.getValue(), localResources);
+            addToLocalResources(fs, entry.getKey(), entry.getValue(), LocalResourceType.FILE,localResources);
         }
         return localResources;
     }
 
-    private static void addToLocalResources(FileSystem fs, String key, Path dst,
+    public static Map<String, LocalResource> makeLocalResourcesArchive(
+            FileSystem fs, Map<String, Path> files) throws IOException {
+        Map<String, LocalResource> localResources = new HashMap<>();
+        for (Map.Entry<String, Path> entry : files.entrySet()) {
+            addToLocalResources(fs, entry.getKey(), entry.getValue(), LocalResourceType.ARCHIVE,localResources);
+        }
+        return localResources;
+    }
+
+    private static void addToLocalResources(FileSystem fs, String key, Path dst,LocalResourceType localResourceType,
                                             Map<String, LocalResource> localResources) throws IOException {
         FileStatus scFileStatus = fs.getFileStatus(dst);
         LocalResource resource =
                 LocalResource.newInstance(
                         URL.fromURI(dst.toUri()),
-                        LocalResourceType.FILE, LocalResourceVisibility.APPLICATION,
+                        localResourceType, LocalResourceVisibility.APPLICATION,
                         scFileStatus.getLen(), scFileStatus.getModificationTime());
         localResources.put(key, resource);
     }
@@ -112,8 +121,8 @@ public class Utils {
                 "Amount of memory in MB to be requested to run a container");
         opts.addOption(Constants.OPT_DATAX_CONTAINER_VCORES, true,
                 "Amount of virtual cores to be requested to run a container");
-        opts.addOption(Constants.OPT_DATAX_JAR, true,
-                "Jar file containing TensorFlow server");
+        opts.addOption(Constants.OPT_DATAX_TAR, true,
+                "Jar file containing");
     }
 
     public static String toJsonString(Object object) throws JsonProcessingException {

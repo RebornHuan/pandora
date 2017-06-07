@@ -18,7 +18,7 @@ import java.util.Map;
 public class LaunchContainerThread extends Thread {
     private static final Log LOG = LogFactory.getLog(LaunchContainerThread.class);
     private final Container container;
-    private final String dataxJar;
+    private final String dataxTar;
     private final long containerMemory;
     private final ApplicationMaster appMaster;
 
@@ -28,7 +28,7 @@ public class LaunchContainerThread extends Thread {
         this.container = container;
         this.appMaster = appMaster;
         this.containerMemory = containerMemory;
-        this.dataxJar = dataxJar;
+        this.dataxTar = dataxJar;
     }
 
     @Override
@@ -39,14 +39,13 @@ public class LaunchContainerThread extends Thread {
             env.put("LD_LIBRARY_PATH", current + ":" + "`pwd`");
 
             Map<String, Path> files = new HashMap<>();
-            files.put(Constants.DATAX_JAR_NAME, new Path(dataxJar));
+            files.put(Constants.DATAX_FOLDER, new Path(dataxTar));
 
             FileSystem fs = FileSystem.get(appMaster.getConfiguration());
             Map<String, LocalResource> localResources =
-                    Utils.makeLocalResources(fs, files);
+                    Utils.makeLocalResourcesArchive(fs, files);
 
-            String command = makeContainerCommand(
-                    containerMemory, "test");
+            String command = makeContainerCommand();
 
             LOG.info("Launching a new container."
                     + ", containerId=" + container.getId()
@@ -67,17 +66,13 @@ public class LaunchContainerThread extends Thread {
         }
     }
 
-    private String makeContainerCommand(long containerMemory,
-                                        String jobName) {
+    private String makeContainerCommand() {
         String[] commands = new String[]{
-                ApplicationConstants.Environment.JAVA_HOME.$$() + "/bin/java",
-                "-Xmx" + containerMemory + "m",
-                " ",
-                Utils.mkOption(Constants.OPT_JOB_NAME, jobName),
+                "cd datax_folder/datax; bin/datax.py job/job.json",
                 "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
-                        ApplicationConstants.STDOUT,
+                        "/AppMaster.stdout",
                 "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
-                        ApplicationConstants.STDERR
+                        "/AppMaster.stderr"
         };
 
         return Utils.mkString(commands, " ");
