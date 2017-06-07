@@ -53,7 +53,7 @@ public class LaunchContainerThread extends Thread {
                     + ":" + container.getNodeId().getPort()
                     + ", containerNodeURI=" + container.getNodeHttpAddress()
                     + ", containerResourceMemory="
-                    + container.getResource().getMemorySize()
+                    + container.getResource().getMemory()
                     + ", containerResourceVirtualCores="
                     + container.getResource().getVirtualCores()
                     + ", command: " + command);
