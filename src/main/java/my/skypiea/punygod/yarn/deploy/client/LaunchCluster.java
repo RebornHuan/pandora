@@ -12,6 +12,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ClassUtil;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.*;
@@ -36,10 +38,14 @@ public class LaunchCluster implements Client.Command {
     private final Integer containerMemory;
     private final Integer containerVCores;
     private final String pandoraJar;
+    private final Credentials credentials;
 
-    public LaunchCluster(Configuration conf, YarnClient yarnClient, CommandLine cliParser) {
+
+    public LaunchCluster(Configuration conf, YarnClient yarnClient, CommandLine cliParser, Credentials credentials) {
         this.conf = conf;
         this.yarnClient = yarnClient;
+
+        this.credentials =  credentials;
         appName = cliParser.getOptionValue(
                 Constants.OPT_DATAX_APP_NAME, Constants.DEFAULT_APP_NAME);
 
@@ -67,6 +73,14 @@ public class LaunchCluster implements Client.Command {
 
         // Copy the application jar to the filesystem
         FileSystem fs = FileSystem.get(conf);
+
+        if (credentials != null) {
+            // Add credentials to current user's UGI, so that following operations don't need to use the
+            // Kerberos tgt to get delegations again in the client side.
+            UserGroupInformation.getCurrentUser().addCredentials(credentials);
+            LOG.info("Make ApplicationMaster credentials: " + credentials);
+        }
+
         String appIdStr = appId.toString();
         Path dstJarPath = Utils.copyLocalFileToDfs(fs, appIdStr, new Path(pandoraJar), Constants.PANDORA_JAR_NAME);
         Map<String, Path> files = new HashMap<>();

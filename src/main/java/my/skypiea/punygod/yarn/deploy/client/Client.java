@@ -6,10 +6,14 @@ import my.skypiea.punygod.yarn.deploy.util.Utils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
 
 /**
  * Interact with YARN cluster on client command and options.
@@ -23,6 +27,7 @@ public class Client extends ProcessRunner {
     private final Configuration conf;
     private String cmdName;
     private Command command;
+    private Credentials credentials;
 
     public Client() {
         this(new YarnConfiguration(), YarnClient.createYarnClient());
@@ -32,6 +37,13 @@ public class Client extends ProcessRunner {
         super("Client");
         this.conf = conf;
         this.yarnClient = yarnClient;
+        // Defensive copy of the credentials
+        try {
+            credentials = new Credentials(UserGroupInformation.getCurrentUser().getCredentials());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         yarnClient.init(conf);
         yarnClient.start();
         LOG.info("Starting YarnClient...");
@@ -46,7 +58,7 @@ public class Client extends ProcessRunner {
     @Override
     public void init(CommandLine cliParser) {
         if (cmdName.equalsIgnoreCase(LAUNCH)) {
-            command = new LaunchCluster(conf, yarnClient, cliParser);
+            command = new LaunchCluster(conf, yarnClient, cliParser, credentials);
         }
     }
 

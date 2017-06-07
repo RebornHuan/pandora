@@ -25,7 +25,7 @@ public class ApplicationMasterArgs {
 //      throw new IllegalArgumentException("No Datax tar specified");
 //    }
 //    dataxTar = cliParser.getOptionValue(Constants.OPT_DATAX_TAR);
-    dataxTar = "hdfs://localhost:9000/user/wanghuan/datax.tar.gz";
+    dataxTar = "hdfs://nn-idc/tmp/datax.tar.gz";
   }
 
   int getContainerVCores(int maxVCores) {
