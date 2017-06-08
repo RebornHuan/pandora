@@ -8,6 +8,8 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.*;
@@ -17,6 +19,7 @@ import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,14 +57,19 @@ public class ApplicationMaster extends ProcessRunner {
     // Launch threads
     private List<Thread> launchThreads = new ArrayList<>();
 
-    public ApplicationMaster() {
+    private final Credentials credentials;
+
+    public ApplicationMaster() throws IOException {
         super("ApplicationMaster");
         conf = new YarnConfiguration();
+        credentials = UserGroupInformation.getCurrentUser().getCredentials();
+
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         ApplicationMaster appMaster = new ApplicationMaster();
         appMaster.run(args);
+
     }
 
     @Override
@@ -91,6 +99,7 @@ public class ApplicationMaster extends ProcessRunner {
      */
     @SuppressWarnings({"unchecked"})
     public boolean run() throws Exception {
+
         int numTotalContainersToRequest =
                 args.totalContainerNum - launchedContainers.size();
         // Setup ask for containers from RM
@@ -218,7 +227,7 @@ public class ApplicationMaster extends ProcessRunner {
         }
     }
 
-    private void startAllContainers() {
+    private void startAllContainers() throws IOException {
         for (Container allocatedContainer : allocatedContainers) {
             launchContainer(allocatedContainer);
         }
@@ -226,7 +235,7 @@ public class ApplicationMaster extends ProcessRunner {
 
     private void launchContainer(Container container) {
         LaunchContainerThread launchThread = new LaunchContainerThread(container,
-                this, containerMemory, args.dataxTar);
+                this, containerMemory, args.dataxTar, credentials);
         // launch and start the container on a separate thread to keep
         // the main thread unblocked
         // as all containers may not be allocated at one go.
@@ -401,7 +410,11 @@ public class ApplicationMaster extends ProcessRunner {
             allocatedContainerNum.addAndGet(allocatedContainers.size());
             ApplicationMaster.this.allocatedContainers.addAll(allocatedContainers);
             if (allocatedContainerNum.get() == args.totalContainerNum) {
-                startAllContainers();
+                try {
+                    startAllContainers();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
 

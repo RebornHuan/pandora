@@ -39,7 +39,9 @@ public class Client extends ProcessRunner {
         this.yarnClient = yarnClient;
         // Defensive copy of the credentials
         try {
-            credentials = new Credentials(UserGroupInformation.getCurrentUser().getCredentials());
+            LOG.info("isSecurityEnabled: {}", UserGroupInformation.isSecurityEnabled());
+            LOG.info("isLoginKeytabBased: {}", UserGroupInformation.isLoginKeytabBased());
+            LOG.info("isLoginTicketBased: {}", UserGroupInformation.isLoginTicketBased());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -53,7 +55,6 @@ public class Client extends ProcessRunner {
         Client client = new Client();
         client.run(args);
     }
-
 
     @Override
     public void init(CommandLine cliParser) {

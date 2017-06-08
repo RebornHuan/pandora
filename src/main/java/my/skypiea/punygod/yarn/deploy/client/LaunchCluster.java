@@ -12,6 +12,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ClassUtil;
@@ -19,7 +20,10 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -74,13 +78,6 @@ public class LaunchCluster implements Client.Command {
         // Copy the application jar to the filesystem
         FileSystem fs = FileSystem.get(conf);
 
-        if (credentials != null) {
-            // Add credentials to current user's UGI, so that following operations don't need to use the
-            // Kerberos tgt to get delegations again in the client side.
-            UserGroupInformation.getCurrentUser().addCredentials(credentials);
-            LOG.info("Make ApplicationMaster credentials: " + credentials);
-        }
-
         String appIdStr = appId.toString();
         Path dstJarPath = Utils.copyLocalFileToDfs(fs, appIdStr, new Path(pandoraJar), Constants.PANDORA_JAR_NAME);
         Map<String, Path> files = new HashMap<>();
@@ -91,10 +88,42 @@ public class LaunchCluster implements Client.Command {
         String command = makeAppMasterCommand(dstJarPath.toString());
         LOG.info("Make ApplicationMaster command: " + command);
         ContainerLaunchContext launchContext = ContainerLaunchContext.newInstance(
-                localResources, javaEnv, Lists.newArrayList(command), null, null, null);
+                localResources, javaEnv, Lists.newArrayList(command), null, setupTokens(fs), null);
         Resource resource = Resource.newInstance(amMemory, amVCores);
         submitApplication(app, appName, launchContext, resource, amQueue);
         return awaitApplication(appId);
+    }
+
+
+    /**
+     * setup security token given current user
+     * @return the ByeBuffer containing the security tokens
+     * @throws IOException
+     */
+    private ByteBuffer setupTokens(FileSystem fs) throws IOException {
+        DataOutputBuffer buffer = new DataOutputBuffer();
+        String loc = System.getenv().get("HADOOP_TOKEN_FILE_LOCATION");
+        if ((loc != null && loc.trim().length() > 0)
+                ||  (!UserGroupInformation.isSecurityEnabled())) {
+            this.credentials.writeTokenStorageToStream(buffer);
+        } else {
+            // Note: Credentials class is marked as LimitedPrivate for HDFS and MapReduce
+            Credentials credentials = new Credentials();
+            String tokenRenewer = conf.get(YarnConfiguration.RM_PRINCIPAL);
+            if (tokenRenewer == null || tokenRenewer.length() == 0) {
+                throw new IOException(
+                        "Can't get Master Kerberos principal for the RM to use as renewer");
+            }
+            // For now, only getting tokens for the default file-system.
+            final org.apache.hadoop.security.token.Token<?> tokens[] = fs.addDelegationTokens(tokenRenewer, credentials);
+            if (tokens != null) {
+                for (org.apache.hadoop.security.token.Token<?> token : tokens) {
+                    LOG.info("Got dt for " + fs.getUri() + "; " + token);
+                }
+            }
+            credentials.writeTokenStorageToStream(buffer);
+        }
+        return ByteBuffer.wrap(buffer.getData(), 0, buffer.getLength());
     }
 
     YarnClientApplication createApplication() throws Exception {
